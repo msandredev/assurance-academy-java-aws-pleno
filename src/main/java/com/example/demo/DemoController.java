@@ -11,13 +11,7 @@ public class DemoController {
     @GetMapping("/health")
     public Map<String, String> health() {
         return Map.of(
-            "status", "UP",
-            "mascot", """
-                       ^__^
-                       (oo)\\_______
-                       (__)\\       )\\/\\
-                           ||----w |
-                           ||     ||"""
+            "status", "UP"
         );
     }
 }
