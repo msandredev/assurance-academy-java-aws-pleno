@@ -1,4 +1,4 @@
-package com.example.demo;
+package com.aws.class3;
 
 import java.util.Map;
 
