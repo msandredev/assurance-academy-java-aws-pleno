@@ -21,6 +21,14 @@ public class S3Controller {
         this.service = service;
     }
 
+    // Listar arquivos e pastas (plano). Ex: GET /s3/list?prefix=Aula-Java/
+    @GetMapping("/list")
+    public ResponseEntity<S3Service.ListResult> list(
+            @RequestParam(value = "prefix", required = false) String prefix
+    ) {
+        return ResponseEntity.ok(service.list(prefix));
+    }
+
     // Retorna árvore de arquivos e pastas. Ex: GET /s3/tree?prefix=Aula-Java/
     @GetMapping("/tree")
     public ResponseEntity<S3Service.TreeNode> tree(

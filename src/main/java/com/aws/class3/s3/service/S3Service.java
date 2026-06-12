@@ -51,6 +51,35 @@ public class S3Service {
         return buildTree(normalized);
     }
 
+    // Lista arquivos e pastas num dado nível (plano)
+    public ListResult list(String prefix) {
+        String normalized = (prefix == null || prefix.isBlank())
+                ? ""
+                : normalizePrefix(prefix);
+
+        ListObjectsV2Request request = ListObjectsV2Request.builder()
+                .bucket(BUCKET)
+                .prefix(normalized)
+                .delimiter("/")
+                .build();
+
+        ListObjectsV2Response response = s3Client.listObjectsV2(request);
+
+        List<FolderItem> folders = response.commonPrefixes()
+                .stream()
+                .map(p -> new FolderItem(p.prefix()))
+                .toList();
+
+        List<FileItem> files = new ArrayList<>();
+        for (S3Object obj : response.contents()) {
+            if (!obj.key().equals(normalized)) {
+                files.add(FileItem.fromS3Object(obj));
+            }
+        }
+
+        return new ListResult(folders, files);
+    }
+
     private TreeNode buildTree(String prefixPath) {
         ListObjectsV2Request request = ListObjectsV2Request.builder()
                 .bucket(BUCKET)
@@ -123,4 +152,14 @@ public class S3Service {
             Instant lastModified,
             String eTag
     ) {}
+
+    public record ListResult(List<FolderItem> folders, List<FileItem> files) {}
+
+    public record FolderItem(String prefix) {}
+
+    public record FileItem(String key, Long size, Instant lastModified, String eTag) {
+        static FileItem fromS3Object(S3Object obj) {
+            return new FileItem(obj.key(), obj.size(), obj.lastModified(), obj.eTag());
+        }
+    }
 }
