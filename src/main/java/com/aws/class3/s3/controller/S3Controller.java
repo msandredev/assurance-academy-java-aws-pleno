@@ -21,13 +21,12 @@ public class S3Controller {
         this.service = service;
     }
 
-    // Listar arquivos e pastas. Ex: GET /s3/list?prefix=Aula-Java/
-    // Sem prefix lista a raiz.
-    @GetMapping("/list")
-    public ResponseEntity<S3Service.ListResult> list(
+    // Retorna árvore de arquivos e pastas. Ex: GET /s3/tree?prefix=Aula-Java/
+    @GetMapping("/tree")
+    public ResponseEntity<S3Service.TreeNode> tree(
             @RequestParam(value = "prefix", required = false) String prefix
     ) {
-        return ResponseEntity.ok(service.list(prefix));
+        return ResponseEntity.ok(service.tree(prefix));
     }
 
     // Upload. Ex: POST /s3/upload?prefix=Aula-Java/  (prefix opcional)

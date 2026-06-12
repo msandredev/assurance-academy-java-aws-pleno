@@ -43,37 +43,51 @@ public class S3Service {
         );
     }
 
-    // Lista arquivos e "pastas" (common prefixes) num dado nível.
-    // prefix vazio = raiz do bucket
-    public ListResult list(String prefix) {
-
+    // Retorna a árvore completa de arquivos e pastas a partir de um prefixo
+    public TreeNode tree(String prefix) {
         String normalized = (prefix == null || prefix.isBlank())
                 ? ""
                 : normalizePrefix(prefix);
+        return buildTree(normalized);
+    }
 
+    private TreeNode buildTree(String prefixPath) {
         ListObjectsV2Request request = ListObjectsV2Request.builder()
                 .bucket(BUCKET)
-                .prefix(normalized)
-                .delimiter("/")   // faz o S3 agrupar "pastas"
+                .prefix(prefixPath)
+                .delimiter("/")
                 .build();
 
         ListObjectsV2Response response = s3Client.listObjectsV2(request);
 
-        // Pastas (subprefixos)
-        List<FolderItem> folders = response.commonPrefixes()
-                .stream()
-                .map(p -> new FolderItem(p.prefix()))
-                .toList();
+        List<TreeNode> children = new ArrayList<>();
 
-        // Arquivos (ignora a própria pasta listada como objeto vazio)
-        List<FileItem> files = new ArrayList<>();
+        for (CommonPrefix cp : response.commonPrefixes()) {
+            children.add(buildTree(cp.prefix()));
+        }
+
         for (S3Object obj : response.contents()) {
-            if (!obj.key().equals(normalized)) {
-                files.add(FileItem.fromS3Object(obj));
+            if (!obj.key().equals(prefixPath)) {
+                String name = obj.key().contains("/")
+                        ? obj.key().substring(obj.key().lastIndexOf('/') + 1)
+                        : obj.key();
+                children.add(new TreeNode(
+                        name, obj.key(), "file", null,
+                        obj.size(), obj.lastModified(), obj.eTag()
+                ));
             }
         }
 
-        return new ListResult(folders, files);
+        String displayPath = prefixPath.isEmpty() ? "/" : prefixPath;
+        String name = "/";
+        if (!displayPath.equals("/")) {
+            String trimmed = displayPath.substring(0, displayPath.length() - 1);
+            name = trimmed.contains("/")
+                    ? trimmed.substring(trimmed.lastIndexOf('/') + 1)
+                    : trimmed;
+        }
+
+        return new TreeNode(name, prefixPath, "folder", children, null, null, null);
     }
 
     // Obtém os bytes do arquivo
@@ -100,13 +114,13 @@ public class S3Service {
         return prefix.endsWith("/") ? prefix : prefix + "/";
     }
 
-    public record ListResult(List<FolderItem> folders, List<FileItem> files) {}
-
-    public record FolderItem(String prefix) {}
-
-    public record FileItem(String key, Long size, Instant lastModified, String eTag) {
-        static FileItem fromS3Object(S3Object obj) {
-            return new FileItem(obj.key(), obj.size(), obj.lastModified(), obj.eTag());
-        }
-    }
+    public record TreeNode(
+            String name,
+            String path,
+            String type,
+            List<TreeNode> children,
+            Long size,
+            Instant lastModified,
+            String eTag
+    ) {}
 }
