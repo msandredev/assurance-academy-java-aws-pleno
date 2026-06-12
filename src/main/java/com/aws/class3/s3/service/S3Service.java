@@ -7,6 +7,7 @@ import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.*;
 
 import java.io.IOException;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -59,16 +60,16 @@ public class S3Service {
         ListObjectsV2Response response = s3Client.listObjectsV2(request);
 
         // Pastas (subprefixos)
-        List<String> folders = response.commonPrefixes()
+        List<FolderItem> folders = response.commonPrefixes()
                 .stream()
-                .map(CommonPrefix::prefix)
+                .map(p -> new FolderItem(p.prefix()))
                 .toList();
 
         // Arquivos (ignora a própria pasta listada como objeto vazio)
-        List<String> files = new ArrayList<>();
+        List<FileItem> files = new ArrayList<>();
         for (S3Object obj : response.contents()) {
             if (!obj.key().equals(normalized)) {
-                files.add(obj.key());
+                files.add(FileItem.fromS3Object(obj));
             }
         }
 
@@ -99,5 +100,13 @@ public class S3Service {
         return prefix.endsWith("/") ? prefix : prefix + "/";
     }
 
-    public record ListResult(List<String> folders, List<String> files) {}
+    public record ListResult(List<FolderItem> folders, List<FileItem> files) {}
+
+    public record FolderItem(String prefix) {}
+
+    public record FileItem(String key, Long size, Instant lastModified, String eTag) {
+        static FileItem fromS3Object(S3Object obj) {
+            return new FileItem(obj.key(), obj.size(), obj.lastModified(), obj.eTag());
+        }
+    }
 }
